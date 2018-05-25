@@ -3,19 +3,19 @@ import tensorflow as tf
 
 COLUMNS_COUNT = 1002
 
-LABELS = ['almondjoy', 'bounty', 'dove', 'mars', 'milkyway', 'snickers',
-          'threemusketeers', 'twix']
+LABELS = ['almondjoy ', 'bounty ', 'dove ', 'mars ', 'milkyway ', 'snickers ',
+          'threemusketeers ', 'twix ']
 
 LABEL_COLUMN = 'candy_name'
 
-CSV, EXAMPLE, JSON = 'CSV', 'EXAMPLE', 'JSON'
+TRAIN, EVAL, PREDICT = 'TRAIN', 'EVAL', 'PREDICT'
 
+CSV, EXAMPLE, JSON = 'CSV', 'EXAMPLE', 'JSON'
 
 def model_fn(mode,
              features,
              labels,
              embedding_size=8,
-             hidden_units=[100, 70, 50, 20],
              learning_rate=0.1):
   """Create a Feed forward network classification network
 
@@ -23,68 +23,33 @@ def model_fn(mode,
     mode (string): Mode running training, evaluation or prediction
     features (dict): Dictionary of input feature Tensors
     labels (Tensor): Class label Tensor
-    hidden_units (list): Hidden units
     learning_rate (float): Learning rate for the SGD
 
   Returns:
     Depending on the mode returns Tuple or Dict
   """
-  label_values = tf.constant(LABELS)
-
-  # Keep variance constant with changing embedding sizes.
-  embed_initializer = tf.truncated_normal_initializer(
-      stddev=(1.0 / tf.sqrt(float(embedding_size))))
-
-  with tf.variable_scope('embeddings', initializer=embed_initializer):
-    # Convert categorical (string) values to embeddings
-    for col, vals in CATEGORICAL_COLS:
-      bucket_size = vals if isinstance(vals, int) else len(vals)
-      embeddings = tf.get_variable(
-          col,
-          shape=[bucket_size, embedding_size]
-      )
-
-      if isinstance(vals, int):
-        indices = string_ops.string_to_hash_bucket_fast(
-          features[col], bucket_size)
-      else:
-        table = tf.contrib.lookup.index_table_from_tensor(vals)
-        indices = table.lookup(features[col])
-
-      features[col] = tf.nn.embedding_lookup(embeddings, indices)
-
-  for col in CONTINUOUS_COLS:
-    # Give continuous columns an extra trivial dimension
-    # So they can be concatenated with embedding tensors
-    features[col] = tf.expand_dims(tf.to_float(features[col]), -1)
+  
 
   # Concatenate the (now all dense) features.
   # We need to sort the tensors so that they end up in the same order for
   # prediction, evaluation, and training
+  for col in features:
+    # Give continuous columns an extra trivial dimension
+    # So they can be concatenated with embedding tensors
+    features[col] = tf.expand_dims(tf.to_float(features[col]), -1)
   sorted_feature_tensors = zip(*sorted(features.iteritems()))[1]
   inputs = tf.concat(sorted_feature_tensors, 1)
 
-  # Build the DNN
-  curr_layer = inputs
-
-  for layer_size in hidden_units:
-    curr_layer = tf.layers.dense(
-        curr_layer,
-        layer_size,
-        activation=tf.nn.relu,
-        # This initializer prevents variance from exploding or vanishing when
-        # compounded through different sized layers.
-        kernel_initializer=tf.contrib.layers.variance_scaling_initializer(),
-    )
-
   # Add the output layer
   logits = tf.layers.dense(
-    curr_layer,
+    inputs,
     len(LABELS),
-    # Do not use ReLU on last layer
     activation=None,
     kernel_initializer=tf.contrib.layers.variance_scaling_initializer()
   )
+
+  label_values = tf.constant(LABELS)
+  tf.Print(label_values, [label_values], message="These are the label values: ")
 
   if mode in (PREDICT, EVAL):
     probabilities = tf.nn.softmax(logits)
@@ -114,15 +79,14 @@ def model_fn(mode,
 
   if mode == TRAIN:
     # Build training operation.
-    cross_entropy = tf.reduce_mean(
-        tf.nn.sparse_softmax_cross_entropy_with_logits(
-            logits=logits, labels=label_indices_vector))
+    cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
+      logits=logits, labels=label_indices_vector)
+    cross_entropy = tf.reduce_mean(cross_entropy)
     tf.summary.scalar('loss', cross_entropy)
-    train_op = tf.train.FtrlOptimizer(
-        learning_rate=learning_rate,
-        l1_regularization_strength=3.0,
-        l2_regularization_strength=10.0
-    ).minimize(cross_entropy, global_step=global_step)
+    optimizer = tf.train.FtrlOptimizer(learning_rate=learning_rate,
+                                       l1_regularization_strength=3.0,
+                                      l2_regularization_strength=10.0)
+    train_op = optimizer.minimize(cross_entropy, global_step=global_step)
     return train_op, global_step
 
   if mode == EVAL:

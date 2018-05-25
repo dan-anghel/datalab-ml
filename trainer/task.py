@@ -1,9 +1,10 @@
 import argparse
 import json
 import os
-import six
 import tensorflow as tf
+import threading
 import trainer.model as model
+import six
 
 
 class EvaluationRunHook(tf.train.SessionRunHook):
@@ -171,12 +172,6 @@ def run(target,
                          for the outputed saved_model binary.
   """
 
-  # Calculate the number of hidden units
-  hidden_units = [
-      max(2, int(first_layer_size * scale_factor**i))
-      for i in range(num_layers)
-  ]
-
   # If the server is chief which is `master`
   # In between graph replication Chief is one node in
   # the cluster with extra responsibility and by default
@@ -185,7 +180,6 @@ def run(target,
   # See https://youtu.be/la_M6bCV91M?t=1203 for details on
   # distributed TensorFlow and motivation about chief.
   if is_chief:
-    tf.logging.info("Created DNN hidden units {}".format(hidden_units))
     evaluation_graph = tf.Graph()
     with evaluation_graph.as_default():
 
@@ -202,7 +196,6 @@ def run(target,
           model.EVAL,
           features.copy(),
           labels,
-          hidden_units=hidden_units,
           learning_rate=learning_rate
       )
 
@@ -238,7 +231,6 @@ def run(target,
           model.TRAIN,
           features.copy(),
           labels,
-          hidden_units=hidden_units,
           learning_rate=learning_rate
       )
 
@@ -284,7 +276,7 @@ def dispatch(*args, **kwargs):
   tf_config = os.environ.get('TF_CONFIG')
   # If TF_CONFIG is not available run local
   if not tf_config:
-  	tf.logging.info('No TF_CONFIG environment variable. Running outside Cloud ML Engine')
+    tf.logging.info('No TF_CONFIG environment variable. Running outside Cloud ML Engine')
     return run(target='', cluster_spec=None, is_chief=True, *args, **kwargs)
 
   tf_config_json = json.loads(tf_config)
@@ -295,7 +287,7 @@ def dispatch(*args, **kwargs):
 
   # If cluster information is empty run local
   if job_name is None or task_index is None:
-  	tf.logging.info('Job name and index probably missing. Local Cloud ML Engine training')
+    tf.logging.info('Job name and index probably missing. Local Cloud ML Engine training')
     return run(target='', cluster_spec=None, is_chief=True, *args, **kwargs)
 
   cluster_spec = tf.train.ClusterSpec(cluster)
@@ -314,7 +306,7 @@ def dispatch(*args, **kwargs):
     tf.logging.info('Distributed training, node is %s'.format(job_name))
     return
   elif job_name in ['master', 'worker']:
-  	tf.logging.info('Distributed training, node is %s'.format(job_name))
+    tf.logging.info('Distributed training, node is %s'.format(job_name))
     return run(server.target, cluster_spec, is_chief=(job_name == 'master'),
                *args, **kwargs)
 
