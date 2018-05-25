@@ -1,6 +1,13 @@
 import tensorflow as tf
 
 
+COLUMNS_COUNT = 1002
+
+LABELS = ['almondjoy', 'bounty', 'dove', 'mars', 'milkyway', 'snickers',
+          'threemusketeers', 'twix']
+
+LABEL_COLUMN = 'candy_name'
+
 CSV, EXAMPLE, JSON = 'CSV', 'EXAMPLE', 'JSON'
 
 
@@ -142,6 +149,18 @@ def parse_csv(rows_string_tensor):
   # Example if the data is ['csv,line,1', 'csv,line,2', ..] to
   # [['csv,line,1'], ['csv,line,2']] which after parsing will result in a
   # tuple of tensors: [['csv'], ['csv']], [['line'], ['line']], [[1], [2]]
+  CSV_COLUMNS = []
+  CSV_COLUMN_DEFAULTS = []
+  CONTINUOUS_COLS = []
+  for i in range(0, COLUMNS_COUNT - 1):
+    CSV_COLUMNS.append('feature_{}'.format(i))
+    CONTINUOUS_COLS.append('feature_{}'.format(i))
+    CSV_COLUMN_DEFAULTS.append([0.0])
+  CSV_COLUMNS.append(LABEL_COLUMN)
+  CSV_COLUMN_DEFAULTS.append([''])
+  UNUSED_COLUMNS = set(CSV_COLUMNS) - set(CONTINUOUS_COLS + [LABEL_COLUMN])
+
+  #columns = tf.decode_csv(rows_string_tensor, record_defaults=CSV_COLUMN_DEFAULTS)
   columns = tf.decode_csv(rows_string_tensor, record_defaults=CSV_COLUMN_DEFAULTS)
   features = dict(zip(CSV_COLUMNS, columns))
 
