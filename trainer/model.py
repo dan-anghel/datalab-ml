@@ -49,7 +49,6 @@ def model_fn(mode,
   )
 
   label_values = tf.constant(LABELS)
-  tf.Print(label_values, [label_values], message="These are the label values: ")
 
   if mode in (PREDICT, EVAL):
     probabilities = tf.nn.softmax(logits)

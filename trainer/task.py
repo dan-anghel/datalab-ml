@@ -66,8 +66,8 @@ class EvaluationRunHook(tf.train.SessionRunHook):
         os.path.join(checkpoint_dir, 'eval'), graph=graph)
 
   def after_run(self, run_context, run_values):
-    # Always check for new checkpoints in case a single evaluation
-    # takes longer than checkpoint frequency and _eval_every is >1
+    """Always check for new checkpoints in case a single evaluation
+    takes longer than checkpoint frequency and _eval_every is >1."""
     self._update_latest_checkpoint()
 
     if self._eval_lock.acquire(False):
