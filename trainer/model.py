@@ -3,8 +3,8 @@ import tensorflow as tf
 
 COLUMNS_COUNT = 1002
 
-LABELS = ['almondjoy ', 'bounty ', 'dove ', 'mars ', 'milkyway ', 'snickers ',
-          'threemusketeers ', 'twix ']
+LABELS = ['almondjoy', 'bounty', 'dove', 'mars', 'milkyway', 'snickers',
+          'threemusketeers', 'twix']
 
 LABEL_COLUMN = 'candy_name'
 
